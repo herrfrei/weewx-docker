@@ -12,8 +12,8 @@ on:
         type: string
     outputs:
       image_name:
-        description: "The Docker image name"
-        value: felddy/weewx
+        description: "The image name"
+        value: ghcr.io/herrfrei/weewx
       data_artifact_name:
         description: "The name of the test data artifact"
         value: test-output
