@@ -171,11 +171,11 @@ jobs:
       - docker-secrets
       - metadata
     if: |
-      (github.event_name == 'release' && !github.event.release.prerelease && 
+      (github.event_name == 'release' && !github.event.release.prerelease &&
        needs.docker-secrets.outputs.docker-configured == 'true') ||
-      (github.event_name == 'workflow_dispatch' && 
-       (github.event.inputs.push-to-registries == 'docker' || 
-        github.event.inputs.push-to-registries == 'both') && 
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.push-to-registries == 'docker' ||
+        github.event.inputs.push-to-registries == 'both') &&
        needs.docker-secrets.outputs.docker-configured == 'true')
     permissions:
       contents: read
