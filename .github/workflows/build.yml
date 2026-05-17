@@ -18,15 +18,6 @@ on:
         description: "Tag to apply to pushed images"
         required: true
         default: "dispatch"
-      push-to-registries:
-        description: "Push to which registries? (github/docker/both)"
-        required: true
-        default: "github"
-        type: choice
-        options:
-          - github
-          - docker
-          - both
 
 permissions:
   actions: read
@@ -51,11 +42,8 @@ jobs:
   docker-secrets:
     name: "Docker secrets"
     runs-on: ubuntu-latest
-    outputs:
-      docker-configured: ${{ steps.check.outputs.docker-configured }}
     steps:
-      - id: check
-        name: Check docker.com credentials
+      - name: Check docker.com credentials
         run: |
           return_code=0
           if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
@@ -66,12 +54,7 @@ jobs:
             echo "::warning::Set the DOCKER_PASSWORD secret."
             return_code=1
           fi
-          if [ $return_code -eq 0 ]; then
-            echo "docker-configured=true" >> $GITHUB_OUTPUT
-          else
-            echo "docker-configured=false" >> $GITHUB_OUTPUT
-          fi
-          exit 0
+          exit $return_code
 
   lint:
     name: "Lint"
@@ -170,13 +153,7 @@ jobs:
       - config
       - docker-secrets
       - metadata
-    if: |
-      (github.event_name == 'release' && !github.event.release.prerelease &&
-       needs.docker-secrets.outputs.docker-configured == 'true') ||
-      (github.event_name == 'workflow_dispatch' &&
-       (github.event.inputs.push-to-registries == 'docker' ||
-        github.event.inputs.push-to-registries == 'both') &&
-       needs.docker-secrets.outputs.docker-configured == 'true')
+    if: github.event_name == 'release' && !github.event.release.prerelease
     permissions:
       contents: read
       packages: read
@@ -196,28 +173,10 @@ jobs:
       - config
       - docker-secrets
       - metadata
-    if: github.event_name == 'release' && needs.metadata.outputs.latest == 'true' && needs.docker-secrets.outputs.docker-configured == 'true'
+    if: github.event_name == 'release' && needs.metadata.outputs.latest == 'true'
     uses: felddy/reusable-workflows/.github/workflows/dockerhub-description.yml@v3
     with:
       image_name: ${{ needs.config.outputs.image_name }}
     secrets:
       docker_password: ${{ secrets.DOCKER_PASSWORD }}
       docker_username: ${{ secrets.DOCKER_USERNAME }}
-
-  build-summary:
-    name: "Build Summary"
-    needs:
-      - build-multi-arch-image
-      - mirror-to-dockerhub
-    if: always() && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Report build results
-        run: |
-          echo "✅ Images built and published to GitHub Container Registry"
-          echo "📦 ghcr.io/${{ github.repository }}"
-          if [ "${{ needs.mirror-to-dockerhub.result }}" == "success" ]; then
-            echo "✅ Also successfully pushed to DockerHub"
-          elif [ "${{ needs.mirror-to-dockerhub.result }}" == "skipped" ]; then
-            echo "⏭️  DockerHub push skipped (secrets or conditions not met)"
-          fi
